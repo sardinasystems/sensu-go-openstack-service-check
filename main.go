@@ -5,7 +5,8 @@ import (
 	"os"
 
 	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
+	volsrv "github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
+	cptsrv "github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
 	"github.com/gophercloud/utils/openstack/clientconfig"
 	"github.com/jedib0t/go-pretty/v6/table"
 	corev2 "github.com/sensu/sensu-go/api/core/v2"
@@ -96,18 +97,21 @@ func executeCheck(event *corev2.Event) (int, error) {
 	case "compute":
 		return checkCompute(cli)
 
+	case "volume":
+		return checkVolume(cli)
+
 	default:
 		return sensu.CheckStateUnknown, fmt.Errorf("unsupported service: %s", plugin.Service)
 	}
 }
 
 func checkCompute(cli *gophercloud.ServiceClient) (int, error) {
-	pages, err := services.List(cli, nil).AllPages()
+	pages, err := cptsrv.List(cli, nil).AllPages()
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
 
-	srvs, err := services.ExtractServices(pages)
+	srvs, err := cptsrv.ExtractServices(pages)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
@@ -120,6 +124,36 @@ func checkCompute(cli *gophercloud.ServiceClient) (int, error) {
 
 	for _, srv := range srvs {
 		t.AppendRow(table.Row{srv.ID, srv.Binary, srv.Host, srv.Zone, srv.Status, srv.State, srv.UpdatedAt})
+
+		if srv.Status == "enabled" && srv.State != "up" {
+			ret = sensu.CheckStateCritical
+		}
+	}
+
+	t.Render()
+
+	return ret, nil
+}
+
+func checkVolume(cli *gophercloud.ServiceClient) (int, error) {
+	pages, err := volsrv.List(cli, nil).AllPages()
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
+	srvs, err := volsrv.ExtractServices(pages)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
+	ret := sensu.CheckStateOK
+
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"Binary", "Host", "Zone", "Status", "State", "Updated At"})
+
+	for _, srv := range srvs {
+		t.AppendRow(table.Row{srv.Binary, srv.Host, srv.Zone, srv.Status, srv.State, srv.UpdatedAt})
 
 		if srv.Status == "enabled" && srv.State != "up" {
 			ret = sensu.CheckStateCritical
