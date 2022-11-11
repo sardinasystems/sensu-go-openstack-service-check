@@ -4,7 +4,8 @@
 *.dll
 *.so
 *.dylib
-{{ .GithubProject }}
+*~
+*.swp
 
 # Test binary, build with `go test -c`
 *.test
@@ -18,3 +19,4 @@ vendor/
 # deploy
 bonsai/
 dist/
+sensu-go-openstack-service-check

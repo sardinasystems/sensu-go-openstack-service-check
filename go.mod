@@ -1,4 +1,4 @@
-module github.com/{{ .GithubUser }}/{{ .GithubProject }}
+module github.com/sardinasystems/sensu-go-openstack-service-check
 
 go 1.18
 
