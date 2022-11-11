@@ -8,6 +8,7 @@ import (
 	"github.com/gophercloud/gophercloud"
 	volsrv "github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
 	cptsrv "github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
+	netagents "github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
 	sharesrv "github.com/gophercloud/gophercloud/openstack/sharedfilesystems/v2/services"
 	oscli "github.com/gophercloud/utils/client"
 	"github.com/gophercloud/utils/openstack/clientconfig"
@@ -126,6 +127,9 @@ func executeCheck(event *corev2.Event) (int, error) {
 	case "sharev2":
 		return checkShare(cli)
 
+	case "network":
+		return checkNetwork(cli)
+
 	default:
 		return sensu.CheckStateUnknown, fmt.Errorf("unsupported service: %s", plugin.Service)
 	}
@@ -214,6 +218,36 @@ func checkShare(cli *gophercloud.ServiceClient) (int, error) {
 		t.AppendRow(table.Row{srv.ID, srv.Binary, srv.Host, srv.Zone, srv.Status, srv.State, srv.UpdatedAt})
 
 		if srv.Status == "enabled" && srv.State != "up" {
+			ret = sensu.CheckStateCritical
+		}
+	}
+
+	t.Render()
+
+	return ret, nil
+}
+
+func checkNetwork(cli *gophercloud.ServiceClient) (int, error) {
+	pages, err := netagents.List(cli, nil).AllPages()
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
+	agents, err := netagents.ExtractAgents(pages)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
+	ret := sensu.CheckStateOK
+
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"ID", "Agent Type", "Host", "Availability Zone", "Alive", "State", "Binary", "Heartbeat"})
+
+	for _, ag := range agents {
+		t.AppendRow(table.Row{ag.ID, ag.AgentType, ag.Host, ag.AvailabilityZone, ag.Alive, ag.AdminStateUp, ag.Binary, ag.HeartbeatTimestamp})
+
+		if ag.AdminStateUp && !ag.Alive {
 			ret = sensu.CheckStateCritical
 		}
 	}
