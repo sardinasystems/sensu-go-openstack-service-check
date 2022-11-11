@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/gophercloud/gophercloud"
 	volsrv "github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
 	cptsrv "github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
+	sharesrv "github.com/gophercloud/gophercloud/openstack/sharedfilesystems/v2/services"
+	oscli "github.com/gophercloud/utils/client"
 	"github.com/gophercloud/utils/openstack/clientconfig"
 	"github.com/jedib0t/go-pretty/v6/table"
 	corev2 "github.com/sensu/sensu-go/api/core/v2"
@@ -19,6 +22,7 @@ type Config struct {
 	Cloud      string
 	CloudsFile string
 	Service    string
+	Debug      bool
 }
 
 var (
@@ -53,9 +57,15 @@ var (
 			Argument:  "service",
 			Shorthand: "s",
 			Default:   "compute",
-			Allow:     []string{"compute", "network", "volume", "share"},
+			Allow:     []string{"compute", "volume", "sharev2", "network"},
 			Usage:     "Service to check",
 			Value:     &plugin.Service,
+		},
+		&sensu.PluginConfigOption[bool]{
+			Argument:  "debug",
+			Shorthand: "d",
+			Usage:     "Debug API calls",
+			Value:     &plugin.Debug,
 		},
 	}
 )
@@ -84,8 +94,21 @@ func executeCheck(event *corev2.Event) (int, error) {
 		os.Setenv("OS_CLIENT_CONFIG_FILE", plugin.CloudsFile)
 	}
 
+	var httpCli *http.Client
+	if plugin.Debug {
+		httpCli = &http.Client{
+			Transport: &oscli.RoundTripper{
+				Rt:     &http.Transport{},
+				Logger: &oscli.DefaultLogger{},
+			},
+		}
+	} else {
+		httpCli = &http.Client{Transport: &http.Transport{}}
+	}
+
 	opts := &clientconfig.ClientOpts{
-		Cloud: plugin.Cloud,
+		Cloud:      plugin.Cloud,
+		HTTPClient: httpCli,
 	}
 
 	cli, err := clientconfig.NewServiceClient(plugin.Service, opts)
@@ -99,6 +122,9 @@ func executeCheck(event *corev2.Event) (int, error) {
 
 	case "volume":
 		return checkVolume(cli)
+
+	case "sharev2":
+		return checkShare(cli)
 
 	default:
 		return sensu.CheckStateUnknown, fmt.Errorf("unsupported service: %s", plugin.Service)
@@ -154,6 +180,38 @@ func checkVolume(cli *gophercloud.ServiceClient) (int, error) {
 
 	for _, srv := range srvs {
 		t.AppendRow(table.Row{srv.Binary, srv.Host, srv.Zone, srv.Status, srv.State, srv.UpdatedAt})
+
+		if srv.Status == "enabled" && srv.State != "up" {
+			ret = sensu.CheckStateCritical
+		}
+	}
+
+	t.Render()
+
+	return ret, nil
+}
+
+func checkShare(cli *gophercloud.ServiceClient) (int, error) {
+	cli.Microversion = "2.69"
+
+	pages, err := sharesrv.List(cli, nil).AllPages()
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
+	srvs, err := sharesrv.ExtractServices(pages)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
+	ret := sensu.CheckStateOK
+
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"ID", "Binary", "Host", "Zone", "Status", "State", "Updated At"})
+
+	for _, srv := range srvs {
+		t.AppendRow(table.Row{srv.ID, srv.Binary, srv.Host, srv.Zone, srv.Status, srv.State, srv.UpdatedAt})
 
 		if srv.Status == "enabled" && srv.State != "up" {
 			ret = sensu.CheckStateCritical
