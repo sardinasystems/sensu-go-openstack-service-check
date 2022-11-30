@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/gophercloud/gophercloud v1.1.0
 	github.com/gophercloud/utils v0.0.0-20220927104426-4113af8d2663
-	github.com/jedib0t/go-pretty/v6 v6.4.2
+	github.com/jedib0t/go-pretty/v6 v6.4.3
 	github.com/sensu/sensu-go/api/core/v2 v2.16.0
 	github.com/sensu/sensu-plugin-sdk v0.16.0
 )
