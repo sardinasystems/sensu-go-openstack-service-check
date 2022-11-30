@@ -196,7 +196,7 @@ func checkVolume(cli *gophercloud.ServiceClient) (int, error) {
 }
 
 func checkShare(cli *gophercloud.ServiceClient) (int, error) {
-	cli.Microversion = "2.69"
+	cli.Microversion = "2.0"
 
 	pages, err := sharesrv.List(cli, nil).AllPages()
 	if err != nil {
