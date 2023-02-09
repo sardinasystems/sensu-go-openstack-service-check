@@ -7,7 +7,7 @@ require (
 	github.com/gophercloud/utils v0.0.0-20221128194715-5caf33c866da
 	github.com/jedib0t/go-pretty/v6 v6.4.4
 	github.com/sensu/sensu-go/api/core/v2 v2.16.0
-	github.com/sensu/sensu-plugin-sdk v0.16.0
+	github.com/sensu/sensu-plugin-sdk v0.18.0
 )
 
 require (
@@ -31,8 +31,9 @@ require (
 	github.com/rivo/uniseg v0.4.3 // indirect
 	github.com/robertkrimen/otto v0.2.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
-	github.com/sensu/sensu-go/types v0.11.0 // indirect
-	github.com/sensu/sensu-licensing v0.1.2 // indirect
+	github.com/sensu/core/v2 v2.16.1 // indirect
+	github.com/sensu/sensu-api-tools v0.1.0 // indirect
+	github.com/sensu/sensu-licensing/v2 v2.2.1 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/afero v1.9.3 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
