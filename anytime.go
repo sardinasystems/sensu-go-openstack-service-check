@@ -48,3 +48,10 @@ func (jt *AnyTime) UnmarshalJSON(data []byte) error {
 	}
 	return err
 }
+
+func (jt *AnyTime) As() time.Time {
+	if jt == nil {
+		return time.Time{}
+	}
+	return time.Time(*jt)
+}

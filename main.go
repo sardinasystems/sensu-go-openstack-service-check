@@ -58,7 +58,7 @@ var (
 			Argument:  "service",
 			Shorthand: "s",
 			Default:   "compute",
-			Allow:     []string{"compute", "volume", "sharev2", "network"},
+			Allow:     []string{"compute", "volume", "sharev2", "network", "orchestration"},
 			Usage:     "Service to check",
 			Value:     &plugin.Service,
 		},
@@ -128,7 +128,10 @@ func executeCheck(event *corev2.Event) (int, error) {
 		return checkShare(cli)
 
 	case "network":
+
 		return checkNetwork(cli)
+	case "orchestration":
+		return checkOrchestration(cli)
 
 	default:
 		return sensu.CheckStateUnknown, fmt.Errorf("unsupported service: %s", plugin.Service)
@@ -268,6 +271,41 @@ func checkNetwork(cli *gophercloud.ServiceClient) (int, error) {
 		t.AppendRow(table.Row{ag.ID, ag.AgentType, ag.Host, ag.AvailabilityZone, ag.Alive, ag.AdminStateUp, ag.Binary, ag.HeartbeatTimestamp})
 
 		if ag.AdminStateUp && !ag.Alive {
+			ret = sensu.CheckStateCritical
+		}
+	}
+
+	t.Render()
+
+	return ret, nil
+}
+
+func checkOrchestration(cli *gophercloud.ServiceClient) (int, error) {
+	pages, err := HeatServiceList(cli).AllPages()
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
+	srvs, err := ExtractHeatServices(pages)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
+	sort.Slice(srvs, func(i, j int) bool {
+		si, sj := srvs[i], srvs[j]
+		return si.Binary < sj.Binary || (si.Binary == sj.Binary && si.Host < sj.Host)
+	})
+
+	ret := sensu.CheckStateOK
+
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"ID", "Binary", "Host", "Status", "Report Interval", "Updated At"})
+
+	for _, srv := range srvs {
+		t.AppendRow(table.Row{srv.ID, srv.Binary, srv.Host, srv.Status, srv.ReportInterval, srv.UpdatedAt.As()})
+
+		if srv.Status != "up" {
 			ret = sensu.CheckStateCritical
 		}
 	}
