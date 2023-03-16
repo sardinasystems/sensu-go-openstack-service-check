@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 
 	"github.com/gophercloud/gophercloud"
 	volsrv "github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
 	cptsrv "github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
-	netagents "github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
 	sharesrv "github.com/gophercloud/gophercloud/openstack/sharedfilesystems/v2/services"
 	oscli "github.com/gophercloud/utils/client"
 	"github.com/gophercloud/utils/openstack/clientconfig"
@@ -228,15 +228,20 @@ func checkShare(cli *gophercloud.ServiceClient) (int, error) {
 }
 
 func checkNetwork(cli *gophercloud.ServiceClient) (int, error) {
-	pages, err := netagents.List(cli, nil).AllPages()
+	pages, err := NeutronAgentList(cli, nil).AllPages()
 	if err != nil {
-		return sensu.CheckStateUnknown, err
+		return sensu.CheckStateUnknown, fmt.Errorf("List error: %w", err)
 	}
 
-	agents, err := netagents.ExtractAgents(pages)
+	agents, err := ExtractNeutronAgents(pages)
 	if err != nil {
-		return sensu.CheckStateUnknown, err
+		return sensu.CheckStateUnknown, fmt.Errorf("Unmarshal error: %w", err)
 	}
+
+	sort.Slice(agents, func(i, j int) bool {
+		ai, aj := agents[i], agents[j]
+		return ai.AgentType < aj.AgentType || (ai.AgentType == aj.AgentType && ai.Host < aj.Host)
+	})
 
 	ret := sensu.CheckStateOK
 
