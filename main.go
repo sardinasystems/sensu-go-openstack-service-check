@@ -58,7 +58,7 @@ var (
 			Argument:  "service",
 			Shorthand: "s",
 			Default:   "compute",
-			Allow:     []string{"compute", "volume", "sharev2", "network", "orchestration"},
+			Allow:     []string{"compute", "volume", "sharev2", "network", "orchestration", "container"},
 			Usage:     "Service to check",
 			Value:     &plugin.Service,
 		},
@@ -132,6 +132,9 @@ func executeCheck(event *corev2.Event) (int, error) {
 		return checkNetwork(cli)
 	case "orchestration":
 		return checkOrchestration(cli)
+
+	case "container":
+		return checkContainer(cli)
 
 	default:
 		return sensu.CheckStateUnknown, fmt.Errorf("unsupported service: %s", plugin.Service)
@@ -306,6 +309,42 @@ func checkOrchestration(cli *gophercloud.ServiceClient) (int, error) {
 		t.AppendRow(table.Row{srv.ID, srv.Binary, srv.Host, srv.Status, srv.ReportInterval, srv.UpdatedAt.As()})
 
 		if srv.Status != "up" {
+			ret = sensu.CheckStateCritical
+		}
+	}
+
+	t.Render()
+
+	return ret, nil
+}
+
+func checkContainer(cli *gophercloud.ServiceClient) (int, error) {
+
+	pages, err := ZunServiceList(cli).AllPages()
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
+	srvs, err := ExtractZunServices(pages)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
+	sort.Slice(srvs, func(i, j int) bool {
+		si, sj := srvs[i], srvs[j]
+		return si.Binary < sj.Binary || (si.Binary == sj.Binary && si.Host < sj.Host)
+	})
+
+	ret := sensu.CheckStateOK
+
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"ID", "Binary", "Host", "Availability Zone", "Disabled", "State", "Updated At", "Heartbeat"})
+
+	for _, srv := range srvs {
+		t.AppendRow(table.Row{srv.ID, srv.Binary, srv.Host, srv.AvailabilityZone, srv.Disabled, srv.State, srv.UpdatedAt.As(), srv.LastSeenUp.As()})
+
+		if !srv.Disabled && srv.State != "up" {
 			ret = sensu.CheckStateCritical
 		}
 	}
