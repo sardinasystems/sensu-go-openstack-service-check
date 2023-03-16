@@ -146,6 +146,11 @@ func checkCompute(cli *gophercloud.ServiceClient) (int, error) {
 		return sensu.CheckStateUnknown, err
 	}
 
+	sort.Slice(srvs, func(i, j int) bool {
+		si, sj := srvs[i], srvs[j]
+		return si.Binary < sj.Binary || (si.Binary == sj.Binary && si.Host < sj.Host)
+	})
+
 	ret := sensu.CheckStateOK
 
 	t := table.NewWriter()
@@ -175,6 +180,11 @@ func checkVolume(cli *gophercloud.ServiceClient) (int, error) {
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
+
+	sort.Slice(srvs, func(i, j int) bool {
+		si, sj := srvs[i], srvs[j]
+		return si.Binary < sj.Binary || (si.Binary == sj.Binary && si.Host < sj.Host)
+	})
 
 	ret := sensu.CheckStateOK
 
@@ -207,6 +217,11 @@ func checkShare(cli *gophercloud.ServiceClient) (int, error) {
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
+
+	sort.Slice(srvs, func(i, j int) bool {
+		si, sj := srvs[i], srvs[j]
+		return si.Binary < sj.Binary || (si.Binary == sj.Binary && si.Host < sj.Host)
+	})
 
 	ret := sensu.CheckStateOK
 
