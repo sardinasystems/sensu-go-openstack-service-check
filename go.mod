@@ -3,7 +3,7 @@ module github.com/sardinasystems/sensu-go-openstack-service-check
 go 1.18
 
 require (
-	github.com/gophercloud/gophercloud v1.2.0
+	github.com/gophercloud/gophercloud v1.3.0
 	github.com/gophercloud/utils v0.0.0-20230316075016-e15d7ee3ba3b
 	github.com/jedib0t/go-pretty/v6 v6.4.6
 	github.com/sensu/core/v2 v2.17.0
@@ -45,7 +45,6 @@ require (
 	github.com/spf13/viper v1.15.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.7 // indirect
-	go.uber.org/atomic v1.10.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
