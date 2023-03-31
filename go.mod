@@ -6,7 +6,7 @@ require (
 	github.com/gophercloud/gophercloud v1.3.0
 	github.com/gophercloud/utils v0.0.0-20230316075016-e15d7ee3ba3b
 	github.com/jedib0t/go-pretty/v6 v6.4.6
-	github.com/sensu/core/v2 v2.17.0
+	github.com/sensu/core/v2 v2.18.0
 	github.com/sensu/sensu-plugin-sdk v0.18.0
 	github.com/stretchr/testify v1.8.2
 	go.uber.org/multierr v1.11.0
