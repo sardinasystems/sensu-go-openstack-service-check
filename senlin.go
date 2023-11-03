@@ -9,7 +9,7 @@ type SenlinService struct {
 	Binary        string  `json:"binary"`
 	DisableReason string  `json:"disable_reason"`
 	Host          string  `json:"host"`
-	ID            int     `json:"id"`
+	ID            string  `json:"id"`
 	State         string  `json:"state"`
 	Status        string  `json:"status"`
 	Topic         string  `json:"topic"`
