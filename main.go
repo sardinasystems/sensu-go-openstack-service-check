@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"sort"
 
 	"github.com/gophercloud/gophercloud"
@@ -20,10 +21,11 @@ import (
 // Config represents the check plugin config.
 type Config struct {
 	sensu.PluginConfig
-	Cloud      string
-	CloudsFile string
-	Service    string
-	Debug      bool
+	Cloud                  string
+	CloudsFile             string
+	Service                string
+	CriticalDisabledReason []string
+	Debug                  bool
 }
 
 var (
@@ -62,6 +64,13 @@ var (
 			Usage:     "Service to check",
 			Value:     &plugin.Service,
 		},
+		&sensu.SlicePluginConfigOption[string]{
+			Path:      "critical_disabled_reason",
+			Argument:  "critical-reason",
+			Shorthand: "r",
+			Usage:     "Critical error from disabled reason (regexp)",
+			Value:     &plugin.CriticalDisabledReason,
+		},
 		&sensu.PluginConfigOption[bool]{
 			Argument:  "debug",
 			Shorthand: "d",
@@ -70,6 +79,22 @@ var (
 		},
 	}
 )
+
+func reasonMatch(reason string, regexps []string) bool {
+	for _, pattern := range regexps {
+		match, err := regexp.Match(pattern, []byte(reason))
+		if err != nil {
+			fmt.Printf("Error pattern regexp: %v\n", err)
+			return false
+		}
+
+		if match {
+			return match
+		}
+	}
+
+	return false
+}
 
 func main() {
 	useStdin := false
@@ -164,12 +189,16 @@ func checkCompute(cli *gophercloud.ServiceClient) (int, error) {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"ID", "Binary", "Host", "Zone", "Status", "State", "Updated At"})
+	t.AppendHeader(table.Row{"ID", "Binary", "Host", "Zone", "Status", "State", "Updated At", "Disabled Reason"})
 
 	for _, srv := range srvs {
-		t.AppendRow(table.Row{srv.ID, srv.Binary, srv.Host, srv.Zone, srv.Status, srv.State, srv.UpdatedAt})
+		t.AppendRow(table.Row{srv.ID, srv.Binary, srv.Host, srv.Zone, srv.Status, srv.State, srv.UpdatedAt, srv.DisabledReason})
 
 		if srv.Status == "enabled" && srv.State != "up" {
+			ret = sensu.CheckStateCritical
+		}
+
+		if srv.Status == "disabled" && reasonMatch(srv.DisabledReason, plugin.CriticalDisabledReason) {
 			ret = sensu.CheckStateCritical
 		}
 	}
@@ -199,12 +228,16 @@ func checkVolume(cli *gophercloud.ServiceClient) (int, error) {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Binary", "Host", "Zone", "Status", "State", "Updated At"})
+	t.AppendHeader(table.Row{"Binary", "Host", "Zone", "Status", "State", "Updated At", "Disabled Reason"})
 
 	for _, srv := range srvs {
-		t.AppendRow(table.Row{srv.Binary, srv.Host, srv.Zone, srv.Status, srv.State, srv.UpdatedAt})
+		t.AppendRow(table.Row{srv.Binary, srv.Host, srv.Zone, srv.Status, srv.State, srv.UpdatedAt, srv.DisabledReason})
 
 		if srv.Status == "enabled" && srv.State != "up" {
+			ret = sensu.CheckStateCritical
+		}
+
+		if srv.Status == "disabled" && reasonMatch(srv.DisabledReason, plugin.CriticalDisabledReason) {
 			ret = sensu.CheckStateCritical
 		}
 	}
@@ -342,12 +375,16 @@ func checkContainer(cli *gophercloud.ServiceClient) (int, error) {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"ID", "Binary", "Host", "Availability Zone", "Disabled", "State", "Updated At", "Heartbeat"})
+	t.AppendHeader(table.Row{"ID", "Binary", "Host", "Availability Zone", "Disabled", "State", "Updated At", "Heartbeat", "Disable Reason"})
 
 	for _, srv := range srvs {
-		t.AppendRow(table.Row{srv.ID, srv.Binary, srv.Host, srv.AvailabilityZone, srv.Disabled, srv.State, srv.UpdatedAt.As(), srv.LastSeenUp.As()})
+		t.AppendRow(table.Row{srv.ID, srv.Binary, srv.Host, srv.AvailabilityZone, srv.Disabled, srv.State, srv.UpdatedAt.As(), srv.LastSeenUp.As(), srv.DisableReason})
 
 		if !srv.Disabled && srv.State != "up" {
+			ret = sensu.CheckStateCritical
+		}
+
+		if srv.Disabled && reasonMatch(srv.DisableReason, plugin.CriticalDisabledReason) {
 			ret = sensu.CheckStateCritical
 		}
 	}
@@ -379,12 +416,16 @@ func checkClustering(cli *gophercloud.ServiceClient) (int, error) {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"ID", "Binary", "Host", "State", "Status", "Updated At"})
+	t.AppendHeader(table.Row{"ID", "Binary", "Host", "State", "Status", "Updated At", "Disable Reason"})
 
 	for _, srv := range srvs {
-		t.AppendRow(table.Row{srv.ID, srv.Binary, srv.Host, srv.State, srv.Status, srv.UpdatedAt.As()})
+		t.AppendRow(table.Row{srv.ID, srv.Binary, srv.Host, srv.State, srv.Status, srv.UpdatedAt.As(), srv.DisableReason})
 
 		if srv.Status == "enabled" && srv.State != "up" {
+			ret = sensu.CheckStateCritical
+		}
+
+		if srv.Status == "disabled" && reasonMatch(srv.DisableReason, plugin.CriticalDisabledReason) {
 			ret = sensu.CheckStateCritical
 		}
 	}
