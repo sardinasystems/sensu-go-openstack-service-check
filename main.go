@@ -112,6 +112,13 @@ func main() {
 }
 
 func checkArgs(event *corev2.Event) (int, error) {
+	for _, pattern := range plugin.CriticalDisabledReason {
+		_, err := regexp.Compile(pattern)
+		if err != nil {
+			return sensu.CheckStateCritical, fmt.Errorf("Failed to compile regexp: %s: %w", pattern, err)
+		}
+	}
+
 	return sensu.CheckStateOK, nil
 }
 
