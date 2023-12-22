@@ -6,8 +6,10 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack/baremetal/v1/conductors"
 	volsrv "github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
 	cptsrv "github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
 	sharesrv "github.com/gophercloud/gophercloud/openstack/sharedfilesystems/v2/services"
@@ -60,7 +62,7 @@ var (
 			Argument:  "service",
 			Shorthand: "s",
 			Default:   "compute",
-			Allow:     []string{"compute", "volume", "sharev2", "network", "orchestration", "container", "clustering"},
+			Allow:     []string{"compute", "volume", "sharev2", "network", "orchestration", "container", "clustering", "baremetal"},
 			Usage:     "Service to check",
 			Value:     &plugin.Service,
 		},
@@ -170,6 +172,9 @@ func executeCheck(event *corev2.Event) (int, error) {
 
 	case "clustering":
 		return checkClustering(cli)
+
+	case "baremetal":
+		return checkBaremetal(cli)
 
 	default:
 		return sensu.CheckStateUnknown, fmt.Errorf("unsupported service: %s", plugin.Service)
@@ -433,6 +438,43 @@ func checkClustering(cli *gophercloud.ServiceClient) (int, error) {
 		}
 
 		if srv.Status == "disabled" && reasonMatch(srv.DisableReason, plugin.CriticalDisabledReason) {
+			ret = sensu.CheckStateCritical
+		}
+	}
+
+	t.Render()
+
+	return ret, nil
+}
+
+func checkBaremetal(cli *gophercloud.ServiceClient) (int, error) {
+	cli.Microversion = "1.49"
+
+	pages, err := conductors.List(cli, conductors.ListOpts{Detail: true}).AllPages()
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
+	srvs, err := conductors.ExtractConductors(pages)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
+	sort.Slice(srvs, func(i, j int) bool {
+		si, sj := srvs[i], srvs[j]
+		return si.Hostname < sj.Hostname
+	})
+
+	ret := sensu.CheckStateOK
+
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"Host", "Conductor Group", "Drivers", "Alive", "Updated At"})
+
+	for _, srv := range srvs {
+		t.AppendRow(table.Row{srv.Hostname, srv.ConductorGroup, strings.Join(srv.Drivers, " "), srv.Alive, srv.UpdatedAt})
+
+		if !srv.Alive {
 			ret = sensu.CheckStateCritical
 		}
 	}
