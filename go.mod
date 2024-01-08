@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/gophercloud/gophercloud v1.8.0
 	github.com/gophercloud/utils v0.0.0-20231010081019-80377eca5d56
-	github.com/jedib0t/go-pretty/v6 v6.5.0
+	github.com/jedib0t/go-pretty/v6 v6.5.2
 	github.com/sensu/core/v2 v2.20.0
 	github.com/sensu/sensu-plugin-sdk v0.18.0
 	github.com/stretchr/testify v1.8.4
@@ -50,7 +50,7 @@ require (
 	go.etcd.io/etcd/api/v3 v3.5.11 // indirect
 	golang.org/x/exp v0.0.0-20231219180239-dc181d75b848 // indirect
 	golang.org/x/net v0.19.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/genproto v0.0.0-20231212172506-995d672761c0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20231212172506-995d672761c0 // indirect
