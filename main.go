@@ -1,20 +1,23 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
-	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack/baremetal/v1/conductors"
-	volsrv "github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
-	cptsrv "github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
-	sharesrv "github.com/gophercloud/gophercloud/openstack/sharedfilesystems/v2/services"
-	oscli "github.com/gophercloud/utils/client"
-	"github.com/gophercloud/utils/openstack/clientconfig"
+	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack"
+	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/v1/conductors"
+	volsrv "github.com/gophercloud/gophercloud/v2/openstack/blockstorage/extensions/services"
+	cptsrv "github.com/gophercloud/gophercloud/v2/openstack/compute/v2/extensions/services"
+	"github.com/gophercloud/gophercloud/v2/openstack/config"
+	clouds "github.com/gophercloud/gophercloud/v2/openstack/config/clouds"
+	sharesrv "github.com/gophercloud/gophercloud/v2/openstack/sharedfilesystems/v2/services"
 	"github.com/jedib0t/go-pretty/v6/table"
 	corev2 "github.com/sensu/core/v2"
 	"github.com/sensu/sensu-plugin-sdk/sensu"
@@ -125,63 +128,77 @@ func checkArgs(event *corev2.Event) (int, error) {
 }
 
 func executeCheck(event *corev2.Event) (int, error) {
+	ctx, cf := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cf()
+
+	// XXX clouds.WithLocations() hard to make conditional, as cloudOpts unexported and there no type suitable to make array
 	if plugin.CloudsFile != "" {
 		os.Setenv("OS_CLIENT_CONFIG_FILE", plugin.CloudsFile)
 	}
 
 	var httpCli *http.Client
 	if plugin.Debug {
-		httpCli = &http.Client{
-			Transport: &oscli.RoundTripper{
-				Rt:     &http.Transport{},
-				Logger: &oscli.DefaultLogger{},
-			},
-		}
+		httpCli = &http.Client{Transport: &http.Transport{}}
+		// Wait till it support v2
+		// httpCli = &http.Client{
+		// 	Transport: &oscli.RoundTripper{
+		// 		Rt:     &http.Transport{},
+		// 		Logger: &oscli.DefaultLogger{},
+		// 	},
+		// }
 	} else {
 		httpCli = &http.Client{Transport: &http.Transport{}}
 	}
 
-	opts := &clientconfig.ClientOpts{
-		Cloud:      plugin.Cloud,
-		HTTPClient: httpCli,
+	ao, eo, tlsCfg, err := clouds.Parse(clouds.WithCloudName(plugin.Cloud))
+	if err != nil {
+		return err
 	}
 
-	cli, err := clientconfig.NewServiceClient(plugin.Service, opts)
+	// check never need to reauth
+	ao.AllowReauth = false
+
+	pc, err := config.NewProviderClient(ctx, ao, config.WithHTTPClient(*httpCli), config.WithTLSConfig(tlsCfg))
 	if err != nil {
-		return sensu.CheckStateUnknown, err
+		return err
 	}
 
 	switch plugin.Service {
 	case "compute":
-		return checkCompute(cli)
+		return checkCompute(ctx, pc, eo)
 
 	case "volume":
-		return checkVolume(cli)
+		return checkVolume(ctx, pc, eo)
 
 	case "sharev2":
-		return checkShare(cli)
+		return checkShare(ctx, pc, eo)
 
 	case "network":
+		return checkNetwork(ctx, pc, eo)
 
-		return checkNetwork(cli)
 	case "orchestration":
-		return checkOrchestration(cli)
+		return checkOrchestration(ctx, pc, eo)
 
 	case "container":
-		return checkContainer(cli)
+		return checkContainer(ctx, pc, eo)
 
 	case "clustering":
-		return checkClustering(cli)
+		return checkClustering(ctx, pc, eo)
 
 	case "baremetal":
-		return checkBaremetal(cli)
+		return checkBaremetal(ctx, pc, eo)
 
 	default:
 		return sensu.CheckStateUnknown, fmt.Errorf("unsupported service: %s", plugin.Service)
 	}
 }
 
-func checkCompute(cli *gophercloud.ServiceClient) (int, error) {
+func checkCompute(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+	cli, err := openstack.NewComputeV2(pc, eo)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
 	pages, err := cptsrv.List(cli, nil).AllPages()
 	if err != nil {
 		return sensu.CheckStateUnknown, err
@@ -220,7 +237,12 @@ func checkCompute(cli *gophercloud.ServiceClient) (int, error) {
 	return ret, nil
 }
 
-func checkVolume(cli *gophercloud.ServiceClient) (int, error) {
+func checkVolume(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+	cli, err := openstack.NewBlockStorageV3(pc, eo)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
 	pages, err := volsrv.List(cli, nil).AllPages()
 	if err != nil {
 		return sensu.CheckStateUnknown, err
@@ -259,7 +281,12 @@ func checkVolume(cli *gophercloud.ServiceClient) (int, error) {
 	return ret, nil
 }
 
-func checkShare(cli *gophercloud.ServiceClient) (int, error) {
+func checkShare(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+	cli, err := openstack.NewSharedFileSystemV2(pc, eo)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
 	cli.Microversion = "2.7"
 
 	pages, err := sharesrv.List(cli, nil).AllPages()
@@ -296,7 +323,12 @@ func checkShare(cli *gophercloud.ServiceClient) (int, error) {
 	return ret, nil
 }
 
-func checkNetwork(cli *gophercloud.ServiceClient) (int, error) {
+func checkNetwork(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+	cli, err := openstack.NewNetworkV2(pc, eo)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
 	pages, err := NeutronAgentList(cli, nil).AllPages()
 	if err != nil {
 		return sensu.CheckStateUnknown, fmt.Errorf("List error: %w", err)
@@ -331,7 +363,12 @@ func checkNetwork(cli *gophercloud.ServiceClient) (int, error) {
 	return ret, nil
 }
 
-func checkOrchestration(cli *gophercloud.ServiceClient) (int, error) {
+func checkOrchestration(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+	cli, err := openstack.NewOrchestrationV1(pc, eo)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
+
 	pages, err := HeatServiceList(cli).AllPages()
 	if err != nil {
 		return sensu.CheckStateUnknown, err
@@ -366,7 +403,11 @@ func checkOrchestration(cli *gophercloud.ServiceClient) (int, error) {
 	return ret, nil
 }
 
-func checkContainer(cli *gophercloud.ServiceClient) (int, error) {
+func checkContainer(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+	cli, err := openstack.NewContainerV1(pc, eo)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
 
 	pages, err := ZunServiceList(cli).AllPages()
 	if err != nil {
@@ -406,7 +447,11 @@ func checkContainer(cli *gophercloud.ServiceClient) (int, error) {
 	return ret, nil
 }
 
-func checkClustering(cli *gophercloud.ServiceClient) (int, error) {
+func checkClustering(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+	cli, err := openstack.NewClusteringV1(pc, eo)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
 	cli.Microversion = "1.7"
 
 	pages, err := SenlinServiceList(cli).AllPages()
@@ -447,7 +492,11 @@ func checkClustering(cli *gophercloud.ServiceClient) (int, error) {
 	return ret, nil
 }
 
-func checkBaremetal(cli *gophercloud.ServiceClient) (int, error) {
+func checkBaremetal(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+	cli, err := openstack.NewBareMetalV1(pc, eo)
+	if err != nil {
+		return sensu.CheckStateUnknown, err
+	}
 	cli.Microversion = "1.49"
 
 	pages, err := conductors.List(cli, conductors.ListOpts{Detail: true}).AllPages()
