@@ -152,7 +152,7 @@ func executeCheck(event *corev2.Event) (int, error) {
 
 	ao, eo, tlsCfg, err := clouds.Parse(clouds.WithCloudName(plugin.Cloud))
 	if err != nil {
-		return err
+		return sensu.CheckStateUnknown, err
 	}
 
 	// check never need to reauth
@@ -160,7 +160,7 @@ func executeCheck(event *corev2.Event) (int, error) {
 
 	pc, err := config.NewProviderClient(ctx, ao, config.WithHTTPClient(*httpCli), config.WithTLSConfig(tlsCfg))
 	if err != nil {
-		return err
+		return sensu.CheckStateUnknown, err
 	}
 
 	switch plugin.Service {
