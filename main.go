@@ -145,8 +145,8 @@ func executeCheck(event *corev2.Event) (int, error) {
 	}
 
 	pOpts := []clouds.ParseOption{clouds.WithCloudName(plugin.Cloud)}
-	if plugin.CloudsConfig != "" {
-		pOpts = append(pOpts, clouds.WithLocations(g.CloudsConfig))
+	if plugin.CloudsFile != "" {
+		pOpts = append(pOpts, clouds.WithLocations(plugin.CloudsFile))
 	}
 
 	ao, eo, tlsCfg, err := clouds.Parse(pOpts...)
