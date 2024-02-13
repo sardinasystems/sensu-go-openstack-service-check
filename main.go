@@ -18,6 +18,7 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/config"
 	clouds "github.com/gophercloud/gophercloud/v2/openstack/config/clouds"
 	sharesrv "github.com/gophercloud/gophercloud/v2/openstack/sharedfilesystems/v2/services"
+	oscli "github.com/gophercloud/utils/v2/client"
 	"github.com/jedib0t/go-pretty/v6/table"
 	corev2 "github.com/sensu/core/v2"
 	"github.com/sensu/sensu-plugin-sdk/sensu"
@@ -131,26 +132,24 @@ func executeCheck(event *corev2.Event) (int, error) {
 	ctx, cf := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cf()
 
-	// XXX clouds.WithLocations() hard to make conditional, as cloudOpts unexported and there no type suitable to make array
-	if plugin.CloudsFile != "" {
-		os.Setenv("OS_CLIENT_CONFIG_FILE", plugin.CloudsFile)
-	}
-
 	var httpCli *http.Client
 	if plugin.Debug {
-		httpCli = &http.Client{Transport: &http.Transport{}}
-		// Wait till it support v2
-		// httpCli = &http.Client{
-		// 	Transport: &oscli.RoundTripper{
-		// 		Rt:     &http.Transport{},
-		// 		Logger: &oscli.DefaultLogger{},
-		// 	},
-		// }
+		httpCli = &http.Client{
+			Transport: &oscli.RoundTripper{
+				Rt:     &http.Transport{},
+				Logger: &oscli.DefaultLogger{},
+			},
+		}
 	} else {
 		httpCli = &http.Client{Transport: &http.Transport{}}
 	}
 
-	ao, eo, tlsCfg, err := clouds.Parse(clouds.WithCloudName(plugin.Cloud))
+	pOpts := []clouds.ParseOption{clouds.WithCloudName(plugin.Cloud)}
+	if plugin.CloudsConfig != "" {
+		pOpts = append(pOpts, clouds.WithLocations(g.CloudsConfig))
+	}
+
+	ao, eo, tlsCfg, err := clouds.Parse(pOpts...)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
