@@ -5,7 +5,7 @@ go 1.22
 exclude github.com/gophercloud/gophercloud/v2 v2.0.0-beta.1
 
 require (
-	github.com/gophercloud/gophercloud/v2 v2.0.0-20240213123659-4fcad3d32d81
+	github.com/gophercloud/gophercloud/v2 v2.0.0-beta.2
 	github.com/gophercloud/utils/v2 v2.0.0-20240209190158-fd349d2912d8
 	github.com/jedib0t/go-pretty/v6 v6.5.4
 	github.com/sensu/core/v2 v2.20.0
