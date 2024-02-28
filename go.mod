@@ -9,7 +9,7 @@ require (
 	github.com/gophercloud/utils/v2 v2.0.0-20240209190158-fd349d2912d8
 	github.com/jedib0t/go-pretty/v6 v6.5.4
 	github.com/sensu/core/v2 v2.20.0
-	github.com/sensu/sensu-plugin-sdk v0.18.0
+	github.com/sensu/sensu-plugin-sdk v0.19.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/multierr v1.11.0
 )
