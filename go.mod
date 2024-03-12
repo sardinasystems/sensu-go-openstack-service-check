@@ -2,8 +2,6 @@ module github.com/sardinasystems/sensu-go-openstack-service-check
 
 go 1.22
 
-exclude github.com/gophercloud/gophercloud/v2 v2.0.0-beta.1
-
 require (
 	github.com/gophercloud/gophercloud/v2 v2.0.0-beta.2
 	github.com/gophercloud/utils/v2 v2.0.0-20240305212012-b57aefba4cdb
