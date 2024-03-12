@@ -192,13 +192,13 @@ func executeCheck(event *corev2.Event) (int, error) {
 	}
 }
 
-func checkCompute(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+func checkCompute(ctx context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
 	cli, err := openstack.NewComputeV2(pc, eo)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
 
-	pages, err := cptsrv.List(cli, nil).AllPages()
+	pages, err := cptsrv.List(cli, nil).AllPages(ctx)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
@@ -236,13 +236,13 @@ func checkCompute(_ context.Context, pc *gophercloud.ProviderClient, eo gophercl
 	return ret, nil
 }
 
-func checkVolume(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+func checkVolume(ctx context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
 	cli, err := openstack.NewBlockStorageV3(pc, eo)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
 
-	pages, err := volsrv.List(cli, nil).AllPages()
+	pages, err := volsrv.List(cli, nil).AllPages(ctx)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
@@ -280,7 +280,7 @@ func checkVolume(_ context.Context, pc *gophercloud.ProviderClient, eo gopherclo
 	return ret, nil
 }
 
-func checkShare(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+func checkShare(ctx context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
 	cli, err := openstack.NewSharedFileSystemV2(pc, eo)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
@@ -288,7 +288,7 @@ func checkShare(_ context.Context, pc *gophercloud.ProviderClient, eo gopherclou
 
 	cli.Microversion = "2.7"
 
-	pages, err := sharesrv.List(cli, nil).AllPages()
+	pages, err := sharesrv.List(cli, nil).AllPages(ctx)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
@@ -322,13 +322,13 @@ func checkShare(_ context.Context, pc *gophercloud.ProviderClient, eo gopherclou
 	return ret, nil
 }
 
-func checkNetwork(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+func checkNetwork(ctx context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
 	cli, err := openstack.NewNetworkV2(pc, eo)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
 
-	pages, err := NeutronAgentList(cli, nil).AllPages()
+	pages, err := NeutronAgentList(cli, nil).AllPages(ctx)
 	if err != nil {
 		return sensu.CheckStateUnknown, fmt.Errorf("List error: %w", err)
 	}
@@ -362,13 +362,13 @@ func checkNetwork(_ context.Context, pc *gophercloud.ProviderClient, eo gophercl
 	return ret, nil
 }
 
-func checkOrchestration(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+func checkOrchestration(ctx context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
 	cli, err := openstack.NewOrchestrationV1(pc, eo)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
 
-	pages, err := HeatServiceList(cli).AllPages()
+	pages, err := HeatServiceList(cli).AllPages(ctx)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
@@ -402,13 +402,13 @@ func checkOrchestration(_ context.Context, pc *gophercloud.ProviderClient, eo go
 	return ret, nil
 }
 
-func checkContainer(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+func checkContainer(ctx context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
 	cli, err := openstack.NewContainerV1(pc, eo)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
 
-	pages, err := ZunServiceList(cli).AllPages()
+	pages, err := ZunServiceList(cli).AllPages(ctx)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
@@ -446,14 +446,14 @@ func checkContainer(_ context.Context, pc *gophercloud.ProviderClient, eo gopher
 	return ret, nil
 }
 
-func checkClustering(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+func checkClustering(ctx context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
 	cli, err := openstack.NewClusteringV1(pc, eo)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
 	cli.Microversion = "1.7"
 
-	pages, err := SenlinServiceList(cli).AllPages()
+	pages, err := SenlinServiceList(cli).AllPages(ctx)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
@@ -491,14 +491,14 @@ func checkClustering(_ context.Context, pc *gophercloud.ProviderClient, eo gophe
 	return ret, nil
 }
 
-func checkBaremetal(_ context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
+func checkBaremetal(ctx context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
 	cli, err := openstack.NewBareMetalV1(pc, eo)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
 	cli.Microversion = "1.49"
 
-	pages, err := conductors.List(cli, conductors.ListOpts{Detail: true}).AllPages()
+	pages, err := conductors.List(cli, conductors.ListOpts{Detail: true}).AllPages(ctx)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}
