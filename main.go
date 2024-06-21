@@ -447,7 +447,7 @@ func checkContainer(ctx context.Context, pc *gophercloud.ProviderClient, eo goph
 }
 
 func checkClustering(ctx context.Context, pc *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (int, error) {
-	cli, err := openstack.NewClusteringV1(pc, eo)
+	cli, err := NewClusteringV1(pc, eo)
 	if err != nil {
 		return sensu.CheckStateUnknown, err
 	}

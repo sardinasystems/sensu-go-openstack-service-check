@@ -44,3 +44,22 @@ func SenlinServiceList(client *gophercloud.ServiceClient) pagination.Pager {
 		return SenlinServicePage{pagination.SinglePageBase(r)}
 	})
 }
+
+// Removed from gophercloud v2.0.0-rc.3 because Senlin dropped from 2024.1 (Caracal)
+func NewClusteringV1(client *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (*gophercloud.ServiceClient, error) {
+	const clientType = "clustering"
+
+	sc := new(gophercloud.ServiceClient)
+	eo.ApplyDefaults(clientType)
+
+	url, err := client.EndpointLocator(eo)
+	if err != nil {
+		return sc, err
+	}
+
+	sc.ProviderClient = client
+	sc.Endpoint = url
+	sc.Type = clientType
+
+	return sc, nil
+}
